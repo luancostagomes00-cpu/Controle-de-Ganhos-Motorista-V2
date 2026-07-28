@@ -164,6 +164,23 @@
   /* Install hint */
   .install-hint { background: var(--blue-bg); border: 1px solid rgba(88,166,255,0.2); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 14px; font-size: 12px; color: var(--blue); display: flex; gap: 10px; align-items: flex-start; }
   .install-hint-close { margin-left: auto; cursor: pointer; opacity: 0.7; background: none; border: none; color: var(--blue); font-size: 16px; padding: 0; flex-shrink: 0; }
+
+  /* Chart cards */
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-wrap.h-180 { height: 180px; }
+  .chart-wrap.h-160 { height: 160px; }
+  .chart-wrap.h-140 { height: 140px; }
+  .chart-empty { padding: 30px 0; text-align: center; color: var(--text3); font-size: 12px; }
+
+  /* Fuel efficiency indicators */
+  .fuel-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+  .fuel-metric { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
+  .fuel-metric-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 5px; }
+  .fuel-metric-value { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 600; color: var(--text); }
+  .fuel-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; font-size: 11px; color: var(--text2); }
+  .fuel-legend span { display: flex; align-items: center; gap: 4px; }
+  .fuel-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .field-hint { font-size: 11px; color: var(--text2); margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -266,6 +283,20 @@
       </div>
 
       <div class="card">
+        <div class="card-title">📈 Evolução do Lucro Diário <span id="lucro-diario-sub"></span></div>
+        <div class="chart-wrap h-180">
+          <canvas id="lucro-diario-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🚗 Ganhos por Plataforma <span id="plataforma-sub"></span></div>
+        <div class="chart-wrap h-180">
+          <canvas id="plataforma-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-title">
           Meta do fim de semana
           <button class="btn btn-ghost" onclick="openMetaModal()">✏️ Editar</button>
@@ -284,10 +315,47 @@
           </div>
         </div>
       </div>
+      <div class="card">
+        <div class="card-title">📅 Lucro por Mês</div>
+        <div class="chart-wrap h-180">
+          <canvas id="lucro-mes-chart"></canvas>
+        </div>
+      </div>
       <div class="card" id="monthly-card">
         <div class="card-title">Ganhos por mês</div>
         <div id="monthly-breakdown"></div>
       </div>
+
+      <div class="card">
+        <div class="card-title">⛽ Consumo do Veículo</div>
+        <div class="fuel-metrics">
+          <div class="fuel-metric">
+            <div class="fuel-metric-label">KM rodados</div>
+            <div class="fuel-metric-value" id="v-km">0 km</div>
+          </div>
+          <div class="fuel-metric">
+            <div class="fuel-metric-label">Litros consumidos</div>
+            <div class="fuel-metric-value" id="v-litros">0 L</div>
+          </div>
+          <div class="fuel-metric">
+            <div class="fuel-metric-label">Consumo médio</div>
+            <div class="fuel-metric-value" id="v-consumo">- km/l</div>
+          </div>
+          <div class="fuel-metric">
+            <div class="fuel-metric-label">Custo por km</div>
+            <div class="fuel-metric-value" id="v-custokm">-</div>
+          </div>
+        </div>
+        <div class="chart-wrap h-160">
+          <canvas id="consumo-chart"></canvas>
+        </div>
+        <div class="fuel-legend">
+          <span><i class="fuel-dot" style="background:var(--green)"></i>Acima de 13 km/l</span>
+          <span><i class="fuel-dot" style="background:var(--amber)"></i>Entre 11 e 13 km/l</span>
+          <span><i class="fuel-dot" style="background:var(--red)"></i>Abaixo de 11 km/l</span>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-title">Lançamentos recentes <span id="painel-count"></span>
           <button class="btn btn-ghost" onclick="togglePainelLista()" id="painel-toggle-btn">Ver todos</button>
@@ -356,11 +424,11 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Valor (R$)</label>
-            <input class="form-input" type="number" id="e-valor" placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+            <input class="form-input" type="number" id="e-valor" placeholder="0,00" min="0" step="0.01" inputmode="decimal" oninput="atualizarPrecoLitro()">
           </div>
           <div class="form-group">
             <label class="form-label">Categoria</label>
-            <select class="form-select" id="e-categoria">
+            <select class="form-select" id="e-categoria" onchange="toggleLitrosField()">
               <option value="gas">⛽ Combustível</option>
               <option value="manut">🔧 Manutenção</option>
               <option value="seguro">🛡️ Seguro / IPVA</option>
@@ -368,6 +436,16 @@
               <option value="lavagem">🚿 Lavagem</option>
               <option value="outro">📦 Outro</option>
             </select>
+          </div>
+        </div>
+        <div class="form-row" id="e-litros-group">
+          <div class="form-group">
+            <label class="form-label">Litros abastecidos</label>
+            <input class="form-input" type="number" id="e-litros" placeholder="0,0" min="0" step="0.01" inputmode="decimal" oninput="atualizarPrecoLitro()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Preço por litro</label>
+            <input class="form-input" type="text" id="e-precolitro" placeholder="R$ 0,00" disabled style="opacity:0.7;">
           </div>
         </div>
         <div class="form-row">
@@ -475,11 +553,11 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Valor (R$)</label>
-        <input class="form-input" type="number" id="ee-valor" min="0" step="0.01" inputmode="decimal">
+        <input class="form-input" type="number" id="ee-valor" min="0" step="0.01" inputmode="decimal" oninput="atualizarPrecoLitroEdit()">
       </div>
       <div class="form-group">
         <label class="form-label">Categoria</label>
-        <select class="form-select" id="ee-categoria">
+        <select class="form-select" id="ee-categoria" onchange="toggleEditLitrosField()">
           <option value="gas">⛽ Combustível</option>
           <option value="manut">🔧 Manutenção</option>
           <option value="seguro">🛡️ Seguro / IPVA</option>
@@ -487,6 +565,16 @@
           <option value="lavagem">🚿 Lavagem</option>
           <option value="outro">📦 Outro</option>
         </select>
+      </div>
+    </div>
+    <div class="form-row" id="ee-litros-group">
+      <div class="form-group">
+        <label class="form-label">Litros abastecidos</label>
+        <input class="form-input" type="number" id="ee-litros" min="0" step="0.01" inputmode="decimal" oninput="atualizarPrecoLitroEdit()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Preço por litro</label>
+        <input class="form-input" type="text" id="ee-precolitro" disabled style="opacity:0.7;">
       </div>
     </div>
     <div class="form-row">
@@ -523,7 +611,15 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script>
+if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+  Chart.register(ChartDataLabels);
+  Chart.defaults.color = '#8b949e';
+  Chart.defaults.font.family = "'DM Sans', sans-serif";
+  Chart.defaults.plugins.legend.display = false;
+  Chart.defaults.plugins.datalabels.display = false; // opt-in per chart
+}
 const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 const CATS = { gas:'Combustível', manut:'Manutenção', seguro:'Seguro/IPVA', alimentacao:'Alimentação', lavagem:'Lavagem', outro:'Outro' };
 const CAT_EMOJI = { gas:'⛽', manut:'🔧', seguro:'🛡️', alimentacao:'🍽️', lavagem:'🚿', outro:'📦' };
@@ -647,6 +743,12 @@ let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
   save();
 })();
 let donutChart = null;
+let lucroDiarioChart = null;
+let plataformaChart = null;
+let lucroMesChart = null;
+let consumoChart = null;
+const PLATAFORMAS = ['Uber','99','InDriver','Cabify','Outra'];
+const PLAT_COLORS = { 'Uber':'#3fb950', '99':'#58a6ff', 'InDriver':'#d29922', 'Cabify':'#a371f7', 'Outra':'#8b949e' };
 
 function save() { localStorage.setItem('meu-controle', JSON.stringify(state)); }
 function hoje() { return new Date().toISOString().split('T')[0]; }
@@ -681,23 +783,6 @@ function adicionarGanho() {
   document.getElementById('g-horas').value = '';
   document.getElementById('g-km').value = '';
   document.getElementById('g-obs').value = '';
-  // Taxa fixa Uber R$29 a partir de 01/07/2026
-  var dataGanho = document.getElementById('g-data').value || hoje();
-  var plat = document.getElementById('g-plataforma').value;
-  if (plat === 'Uber' && dataGanho >= '2026-07-01') {
-    var jaTemTaxa = state.gastos.some(function(g) {
-      return g.data === dataGanho && g.desc === 'Taxa fixa Uber';
-    });
-    if (!jaTemTaxa) {
-      state.gastos.push({
-        id: Date.now() + 1,
-        valor: 29.00,
-        categoria: 'outro',
-        data: dataGanho,
-        desc: 'Taxa fixa Uber'
-      });
-    }
-  }
   save(); renderGanhos(); renderGastos(); renderDashboard();
   switchTab('dashboard');
 }
@@ -728,17 +813,47 @@ function removerGanho(id) {
 }
 
 // ---- GASTOS ----
+function toggleLitrosField() {
+  const cat = document.getElementById('e-categoria').value;
+  const grp = document.getElementById('e-litros-group');
+  if (grp) grp.style.display = cat === 'gas' ? 'grid' : 'none';
+}
+function toggleEditLitrosField() {
+  const cat = document.getElementById('ee-categoria').value;
+  const grp = document.getElementById('ee-litros-group');
+  if (grp) grp.style.display = cat === 'gas' ? 'grid' : 'none';
+}
+function atualizarPrecoLitro() {
+  const v = parseFloat(document.getElementById('e-valor').value) || 0;
+  const l = parseFloat(document.getElementById('e-litros').value) || 0;
+  document.getElementById('e-precolitro').value = l > 0 ? fmt(v / l) : '';
+}
+function atualizarPrecoLitroEdit() {
+  const v = parseFloat(document.getElementById('ee-valor').value) || 0;
+  const l = parseFloat(document.getElementById('ee-litros').value) || 0;
+  document.getElementById('ee-precolitro').value = l > 0 ? fmt(v / l) : '';
+}
 function adicionarGasto() {
   const v = parseFloat(document.getElementById('e-valor').value);
   if (!v || v <= 0) { alert('Informe um valor válido.'); return; }
   const cat = document.getElementById('e-categoria').value;
-  state.gastos.push({
+  const novoGasto = {
     id: Date.now(), valor: v, categoria: cat,
     data: document.getElementById('e-data').value || hoje(),
     desc: document.getElementById('e-desc').value || CATS[cat]
-  });
+  };
+  if (cat === 'gas') {
+    const litros = parseFloat(document.getElementById('e-litros').value) || 0;
+    if (litros > 0) {
+      novoGasto.litros = litros;
+      novoGasto.precoLitro = v / litros;
+    }
+  }
+  state.gastos.push(novoGasto);
   document.getElementById('e-valor').value = '';
   document.getElementById('e-desc').value = '';
+  document.getElementById('e-litros').value = '';
+  document.getElementById('e-precolitro').value = '';
   save(); renderGastos(); renderDashboard();
   switchTab('dashboard');
 }
@@ -758,7 +873,7 @@ function renderGastos() {
       '<div class="item-icon spend">' + (CAT_EMOJI[g.categoria]||'📦') + '</div>' +
       '<div class="item-body">' +
         '<div class="item-name">' + g.desc + '</div>' +
-        '<div class="item-meta">' + fmtData(g.data) + ' · <span class="badge ' + (CAT_BADGE[g.categoria]||'badge-gray') + '">' + (CATS[g.categoria]||'Outro') + '</span></div>' +
+        '<div class="item-meta">' + fmtData(g.data) + ' · <span class="badge ' + (CAT_BADGE[g.categoria]||'badge-gray') + '">' + (CATS[g.categoria]||'Outro') + '</span>' + (g.litros ? ' · ' + g.litros.toFixed(1) + 'L · ' + fmt(g.precoLitro) + '/L' : '') + '</div>' +
       '</div>' +
       '<div class="item-right"><div class="item-amount amount-neg">-' + fmt(g.valor) + '</div></div>' +
       '<button class="item-del" onclick="editarGasto(' + g.id + ')" style="color:var(--blue);">✏️</button>' +
@@ -820,6 +935,9 @@ function editarGasto(id) {
   document.getElementById('ee-categoria').value = g.categoria;
   document.getElementById('ee-data').value = g.data;
   document.getElementById('ee-desc').value = g.desc || '';
+  document.getElementById('ee-litros').value = g.litros || '';
+  toggleEditLitrosField();
+  atualizarPrecoLitroEdit();
   document.getElementById('edit-gasto-modal').classList.add('open');
 }
 function closeEditGastoModal(e) {
@@ -834,6 +952,19 @@ function salvarEditGasto() {
   state.gastos[idx].categoria = document.getElementById('ee-categoria').value;
   state.gastos[idx].data = document.getElementById('ee-data').value;
   state.gastos[idx].desc = document.getElementById('ee-desc').value;
+  if (state.gastos[idx].categoria === 'gas') {
+    var litrosEdit = parseFloat(document.getElementById('ee-litros').value) || 0;
+    if (litrosEdit > 0) {
+      state.gastos[idx].litros = litrosEdit;
+      state.gastos[idx].precoLitro = state.gastos[idx].valor / litrosEdit;
+    } else {
+      delete state.gastos[idx].litros;
+      delete state.gastos[idx].precoLitro;
+    }
+  } else {
+    delete state.gastos[idx].litros;
+    delete state.gastos[idx].precoLitro;
+  }
   document.getElementById('edit-gasto-modal').classList.remove('open');
   save(); renderGastos(); renderDashboard();
 }
@@ -903,9 +1034,13 @@ function renderDashboard() {
   document.getElementById('m-rph').textContent = horas > 0 ? fmt(liq/horas) : '-';
 
   renderWeekChart();
+  renderLucroDiarioChart(fg, fe);
+  renderPlataformaChart(fg);
   renderGoal(totalG);
   renderDonut(fe);
+  renderLucroMesChart();
   renderMonthly();
+  renderConsumoVeiculo(fg, fe);
   var btn = document.getElementById('painel-toggle-btn');
   if (btn) btn.textContent = painelListaExpanded ? 'Recolher' : 'Ver todos';
   renderPainelLista(filteredGanhos(), filteredGastos());
@@ -976,6 +1111,277 @@ function renderDonut(gastosList) {
     options: {
       responsive: false, cutout: '70%',
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' '+fmt(ctx.raw) } } }
+    }
+  });
+}
+
+// ---- GRÁFICO: EVOLUÇÃO DO LUCRO DIÁRIO ----
+function renderLucroDiarioChart(fg, fe) {
+  const canvas = document.getElementById('lucro-diario-chart');
+  if (!canvas) return;
+  const porDia = {};
+  fg.forEach(g => { porDia[g.data] = porDia[g.data] || {ganhos:0, gastos:0}; porDia[g.data].ganhos += g.valor; });
+  fe.forEach(g => { porDia[g.data] = porDia[g.data] || {ganhos:0, gastos:0}; porDia[g.data].gastos += g.valor; });
+  const datas = Object.keys(porDia).sort();
+  const subEl = document.getElementById('lucro-diario-sub');
+
+  if (lucroDiarioChart) { lucroDiarioChart.destroy(); lucroDiarioChart = null; }
+
+  canvas.parentElement.querySelectorAll('.chart-empty').forEach(el => el.remove());
+  if (!datas.length) {
+    canvas.style.display = 'none';
+    if (subEl) subEl.textContent = '';
+    canvas.parentElement.insertAdjacentHTML('beforeend', '<div class="chart-empty">Nenhum lançamento no período.</div>');
+    return;
+  }
+  canvas.style.display = 'block';
+  if (subEl) subEl.textContent = datas.length + (datas.length===1?' dia':' dias');
+
+  const labels = datas.map(d => fmtData(d).slice(0,5));
+  const lucros = datas.map(d => porDia[d].ganhos - porDia[d].gastos);
+  const ganhosArr = datas.map(d => porDia[d].ganhos);
+  const gastosArr = datas.map(d => porDia[d].gastos);
+
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+  gradient.addColorStop(0, 'rgba(63,185,80,0.35)');
+  gradient.addColorStop(1, 'rgba(63,185,80,0)');
+
+  lucroDiarioChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Lucro',
+        data: lucros,
+        borderColor: '#3fb950',
+        backgroundColor: gradient,
+        fill: true,
+        tension: 0.35,
+        pointRadius: labels.length > 20 ? 0 : 3,
+        pointBackgroundColor: '#3fb950',
+        pointBorderColor: '#0d1117',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 600, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { display: false },
+        datalabels: { display: false },
+        tooltip: {
+          backgroundColor: '#161b22', borderColor: 'rgba(255,255,255,0.14)', borderWidth: 1,
+          titleColor: '#e6edf3', bodyColor: '#e6edf3', padding: 10,
+          callbacks: {
+            afterBody: ctx => {
+              const i = ctx[0].dataIndex;
+              return ['Ganhos: ' + fmt(ganhosArr[i]), 'Gastos: ' + fmt(gastosArr[i])];
+            },
+            label: ctx => 'Lucro: ' + fmt(ctx.raw)
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e', font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e', font: { size: 10 }, callback: v => fmtShort(v) } }
+      }
+    }
+  });
+}
+
+// ---- GRÁFICO: GANHOS POR PLATAFORMA ----
+function renderPlataformaChart(fg) {
+  const canvas = document.getElementById('plataforma-chart');
+  if (!canvas) return;
+  const porPlataforma = {};
+  PLATAFORMAS.forEach(p => porPlataforma[p] = 0);
+  fg.forEach(g => {
+    const p = PLATAFORMAS.indexOf(g.plataforma) !== -1 ? g.plataforma : 'Outra';
+    porPlataforma[p] = (porPlataforma[p] || 0) + g.valor;
+  });
+  const total = Object.values(porPlataforma).reduce((a,b)=>a+b,0);
+  const subEl = document.getElementById('plataforma-sub');
+  if (subEl) subEl.textContent = total > 0 ? fmt(total) : '';
+
+  const entries = Object.entries(porPlataforma).sort((a,b) => b[1]-a[1]);
+  const labels = entries.map(e => e[0]);
+  const values = entries.map(e => e[1]);
+  const colors = labels.map(l => PLAT_COLORS[l] || '#8b949e');
+
+  if (plataformaChart) { plataformaChart.destroy(); plataformaChart = null; }
+  canvas.parentElement.querySelectorAll('.chart-empty').forEach(el => el.remove());
+
+  if (total <= 0) {
+    canvas.style.display = 'none';
+    canvas.parentElement.insertAdjacentHTML('beforeend', '<div class="chart-empty">Nenhum ganho no período.</div>');
+    return;
+  }
+  canvas.style.display = 'block';
+
+  plataformaChart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, barThickness: 18 }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      animation: { duration: 600, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#161b22', borderColor: 'rgba(255,255,255,0.14)', borderWidth: 1,
+          titleColor: '#e6edf3', bodyColor: '#e6edf3', padding: 10,
+          callbacks: { label: ctx => fmt(ctx.raw) + ' (' + Math.round(ctx.raw/total*100) + '%)' }
+        },
+        datalabels: {
+          display: true, anchor: 'end', align: 'end', color: '#e6edf3', font: { size: 10, weight: '600' },
+          formatter: v => v > 0 ? fmtShort(v) + ' · ' + Math.round(v/total*100) + '%' : ''
+        }
+      },
+      layout: { padding: { right: 46 } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e', font: { size: 10 }, callback: v => fmtShort(v) } },
+        y: { grid: { display: false }, ticks: { color: '#e6edf3', font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+// ---- GRÁFICO: LUCRO POR MÊS ----
+function renderLucroMesChart() {
+  const canvas = document.getElementById('lucro-mes-chart');
+  if (!canvas) return;
+  const meses = {};
+  state.ganhos.forEach(g => { const ym = g.data.slice(0,7); meses[ym] = meses[ym] || {ganhos:0, gastos:0}; meses[ym].ganhos += g.valor; });
+  state.gastos.forEach(g => { const ym = g.data.slice(0,7); meses[ym] = meses[ym] || {ganhos:0, gastos:0}; meses[ym].gastos += g.valor; });
+  const MESES_ABR = { '01':'Jan','02':'Fev','03':'Mar','04':'Abr','05':'Mai','06':'Jun','07':'Jul','08':'Ago','09':'Set','10':'Out','11':'Nov','12':'Dez' };
+  const sorted = Object.keys(meses).sort();
+
+  if (lucroMesChart) { lucroMesChart.destroy(); lucroMesChart = null; }
+  canvas.parentElement.querySelectorAll('.chart-empty').forEach(el => el.remove());
+
+  if (!sorted.length) {
+    canvas.style.display = 'none';
+    canvas.parentElement.insertAdjacentHTML('beforeend', '<div class="chart-empty">Sem dados ainda.</div>');
+    return;
+  }
+  canvas.style.display = 'block';
+
+  const labels = sorted.map(ym => MESES_ABR[ym.slice(5,7)] + '/' + ym.slice(2,4));
+  const values = sorted.map(ym => meses[ym].ganhos - meses[ym].gastos);
+  const colors = values.map(v => v >= 0 ? '#3fb950' : '#f85149');
+
+  lucroMesChart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, maxBarThickness: 34 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 600, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { display: false },
+        datalabels: { display: false },
+        tooltip: {
+          backgroundColor: '#161b22', borderColor: 'rgba(255,255,255,0.14)', borderWidth: 1,
+          titleColor: '#e6edf3', bodyColor: '#e6edf3', padding: 10,
+          callbacks: { label: ctx => 'Lucro: ' + fmt(ctx.raw) }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 10 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e', font: { size: 10 }, callback: v => fmtShort(v) } }
+      }
+    }
+  });
+}
+
+// ---- EFICIÊNCIA DO VEÍCULO ----
+function renderConsumoVeiculo(fg, fe) {
+  const kmRodados = fg.reduce((a,g) => a + (g.km||0), 0);
+  const abastecimentos = fe.filter(g => g.categoria === 'gas' && g.litros);
+  const litrosConsumidos = abastecimentos.reduce((a,g) => a + (g.litros||0), 0);
+  const valorCombustivel = fe.filter(g => g.categoria === 'gas').reduce((a,g) => a + g.valor, 0);
+  const consumoMedio = litrosConsumidos > 0 ? kmRodados / litrosConsumidos : 0;
+  const custoPorKm = kmRodados > 0 ? valorCombustivel / kmRodados : 0;
+
+  const kmEl = document.getElementById('v-km');
+  const litrosEl = document.getElementById('v-litros');
+  const consumoEl = document.getElementById('v-consumo');
+  const custoEl = document.getElementById('v-custokm');
+  if (kmEl) kmEl.textContent = kmRodados.toFixed(1) + ' km';
+  if (litrosEl) litrosEl.textContent = litrosConsumidos.toFixed(1) + ' L';
+  if (consumoEl) {
+    consumoEl.textContent = consumoMedio > 0 ? consumoMedio.toFixed(1) + ' km/l' : '-';
+    consumoEl.style.color = consumoMedio <= 0 ? 'var(--text)' : consumoMedio >= 13 ? 'var(--green)' : consumoMedio >= 11 ? 'var(--amber)' : 'var(--red)';
+  }
+  if (custoEl) custoEl.textContent = kmRodados > 0 && valorCombustivel > 0 ? fmt(custoPorKm) + '/km' : '-';
+
+  // Evolução mensal do consumo (usa todos os registros, para ver tendência real)
+  const canvas = document.getElementById('consumo-chart');
+  if (!canvas) return;
+  const kmPorMes = {};
+  state.ganhos.forEach(g => { const ym = g.data.slice(0,7); kmPorMes[ym] = (kmPorMes[ym]||0) + (g.km||0); });
+  const litrosPorMes = {};
+  state.gastos.forEach(g => {
+    if (g.categoria === 'gas' && g.litros) {
+      const ym = g.data.slice(0,7);
+      litrosPorMes[ym] = (litrosPorMes[ym]||0) + g.litros;
+    }
+  });
+  const mesesComDados = Object.keys(litrosPorMes).filter(ym => litrosPorMes[ym] > 0 && kmPorMes[ym] > 0).sort();
+  const MESES_ABR = { '01':'Jan','02':'Fev','03':'Mar','04':'Abr','05':'Mai','06':'Jun','07':'Jul','08':'Ago','09':'Set','10':'Out','11':'Nov','12':'Dez' };
+
+  if (consumoChart) { consumoChart.destroy(); consumoChart = null; }
+
+  if (!mesesComDados.length) {
+    canvas.style.display = 'none';
+    canvas.parentElement.querySelectorAll('.chart-empty').forEach(el => el.remove());
+    canvas.parentElement.insertAdjacentHTML('beforeend', '<div class="chart-empty">Registre litros abastecidos nos gastos de combustível para ver a evolução do consumo.</div>');
+    return;
+  }
+  canvas.parentElement.querySelectorAll('.chart-empty').forEach(el => el.remove());
+  canvas.style.display = 'block';
+
+  const labels = mesesComDados.map(ym => MESES_ABR[ym.slice(5,7)] + '/' + ym.slice(2,4));
+  const kml = mesesComDados.map(ym => kmPorMes[ym] / litrosPorMes[ym]);
+  const pointColors = kml.map(v => v >= 13 ? '#3fb950' : v >= 11 ? '#d29922' : '#f85149');
+
+  consumoChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: kml,
+        borderColor: '#58a6ff',
+        backgroundColor: 'rgba(88,166,255,0.12)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 5,
+        pointBackgroundColor: pointColors,
+        pointBorderColor: '#0d1117',
+        borderWidth: 2,
+        segment: {
+          borderColor: ctx => {
+            const v = (kml[ctx.p0DataIndex] + kml[ctx.p1DataIndex]) / 2;
+            return v >= 13 ? '#3fb950' : v >= 11 ? '#d29922' : '#f85149';
+          }
+        }
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 600, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { display: false },
+        datalabels: { display: false },
+        tooltip: {
+          backgroundColor: '#161b22', borderColor: 'rgba(255,255,255,0.14)', borderWidth: 1,
+          titleColor: '#e6edf3', bodyColor: '#e6edf3', padding: 10,
+          callbacks: { label: ctx => ctx.raw.toFixed(1) + ' km/l' }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 10 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e', font: { size: 10 } } }
+      }
     }
   });
 }
@@ -1222,6 +1628,8 @@ function renderMonthly() {
 
 document.getElementById('g-data').value = hoje();
 document.getElementById('e-data').value = hoje();
+toggleLitrosField();
+toggleEditLitrosField();
 const now = new Date();
 document.getElementById('header-date').textContent = now.toLocaleDateString('pt-BR', { weekday:'short', day:'numeric', month:'short' });
 renderDashboard();
