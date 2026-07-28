@@ -1,1 +1,312 @@
-<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Meu Controle PRO v2</title><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><style>body{font-family:Arial,sans-serif;margin:0;background:#f4f4f4;color:#222}body.dark{background:#121212;color:#eee}.header{padding:15px;background:#0d6efd;color:#fff}.nav{display:flex;flex-wrap:wrap;gap:8px;padding:10px}.nav button{padding:8px 12px}.sec{display:none;padding:15px}.active{display:block}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.card{background:#fff;padding:12px;border-radius:8px}.dark .card{background:#222}input,select,button{padding:8px;margin:4px}.table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:6px}</style></head><body><div class="header"><h2>🚀 Meu Controle PRO v2</h2></div><div class="nav"><button onclick="show('dash')">📊 Painel</button><button onclick="show('ganhos')">💰 Ganhos</button><button onclick="show('gastos')">💸 Gastos</button><button onclick="show('hist')">📋 Histórico</button><button onclick="show('backup')">💾 Backup</button><button onclick="show('graficos')">📈 Gráficos</button><button onclick="toggleTheme()">🌙 Tema</button></div><section id="dash" class="sec active"><div class="cards"><div class="card">Ganhos: R$ <span id="tg">0</span></div><div class="card">Gastos: R$ <span id="ts">0</span></div><div class="card">Lucro: R$ <span id="tl">0</span></div><div class="card">Meta: R$ <span id="metaView">100</span></div><div class="card">Km/L: <span id="kml">0</span></div></div></section><section id="ganhos" class="sec"><h3>Ganhos</h3><input id="valorG" type="number" placeholder="Valor"><select id="plat"><option>Uber</option><option>99</option><option>InDrive</option></select><button onclick="add('ganho')">Salvar</button></section><section id="gastos" class="sec"><h3>Gastos</h3><input id="valorS" type="number" placeholder="Valor"><button onclick="add('gasto')">Salvar</button><h4>Consumo km/L</h4><input id="km" type="number" placeholder="Km rodados"><input id="litros" type="number" placeholder="Litros"><button onclick="calcKmL()">Calcular</button></section><section id="hist" class="sec"><table class="table"><thead><tr><th>Data</th><th>Tipo</th><th>Valor</th></tr></thead><tbody id="histBody"></tbody></table></section><section id="backup" class="sec"><button onclick="backup()">Exportar JSON</button><input type="file" onchange="restore(event)"><h4>Meta diária</h4><input id="meta" type="number" value="100"><button onclick="saveMeta()">Salvar Meta</button></section><section id="graficos" class="sec"><canvas id="chart"></canvas></section><script>let data=JSON.parse(localStorage.getItem('controle')||'{"movs":[],"meta":100,"kml":0}');function save(){localStorage.setItem('controle',JSON.stringify(data));render()}function show(id){document.querySelectorAll('.sec').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active')}function add(t){let v=t==='ganho'?Number(valorG.value):Number(valorS.value);if(!v)return;data.movs.push({d:new Date().toLocaleDateString(),t,v,p:plat?.value});save()}function render(){let g=data.movs.filter(x=>x.t==='ganho').reduce((a,b)=>a+b.v,0);let s=data.movs.filter(x=>x.t==='gasto').reduce((a,b)=>a+b.v,0);tg.textContent=g.toFixed(2);ts.textContent=s.toFixed(2);tl.textContent=(g-s).toFixed(2);metaView.textContent=data.meta;kml.textContent=data.kml;histBody.innerHTML=data.movs.map(x=>`<tr><td>${x.d}</td><td>${x.t}</td><td>${x.v}</td></tr>`).join('');draw()}function draw(){let uber=data.movs.filter(x=>x.p==='Uber').reduce((a,b)=>a+b.v,0);let n99=data.movs.filter(x=>x.p==='99').reduce((a,b)=>a+b.v,0);let ind=data.movs.filter(x=>x.p==='InDrive').reduce((a,b)=>a+b.v,0);let c=document.getElementById('chart');if(window.graf)graf.destroy();window.graf=new Chart(c,{type:'bar',data:{labels:['Uber','99','InDrive'],datasets:[{label:'Ganhos',data:[uber,n99,ind]}]}})}function backup(){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'}));a.download='backup_financeiro.json';a.click()}function restore(e){let f=e.target.files[0];let r=new FileReader();r.onload=()=>{data=JSON.parse(r.result);save()};r.readAsText(f)}function calcKmL(){data.kml=(Number(km.value)/Number(litros.value)).toFixed(2);save()}function saveMeta(){data.meta=Number(document.getElementById('meta').value);save()}function toggleTheme(){document.body.classList.toggle('dark')}render();</script></body></html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controle de Ganhos Para Motorista de Aplicativo</title>
+
+cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Segoe UI,sans-serif;
+}
+
+body{
+background:#0f172a;
+color:white;
+}
+
+.container{
+display:flex;
+min-height:100vh;
+}
+
+.sidebar{
+width:260px;
+background:rgba(255,255,255,.05);
+backdrop-filter:blur(20px);
+padding:20px;
+}
+
+.logo{
+font-size:22px;
+font-weight:700;
+margin-bottom:25px;
+line-height:1.4;
+}
+
+.menu button{
+width:100%;
+padding:14px;
+margin-bottom:10px;
+border:none;
+border-radius:12px;
+background:#1e293b;
+color:white;
+cursor:pointer;
+}
+
+.content{
+flex:1;
+padding:25px;
+}
+
+.page{
+display:none;
+}
+
+.page.active{
+display:block;
+}
+
+.cards{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:15px;
+margin-bottom:20px;
+}
+
+.card{
+background:rgba(255,255,255,.08);
+backdrop-filter:blur(20px);
+padding:20px;
+border-radius:20px;
+box-shadow:0 10px 25px rgba(0,0,0,.2);
+}
+
+.valor{
+font-size:28px;
+font-weight:bold;
+margin-top:10px;
+}
+
+.form-box{
+background:rgba(255,255,255,.08);
+padding:20px;
+border-radius:20px;
+margin-bottom:20px;
+}
+
+input, select{
+width:100%;
+padding:12px;
+margin-top:10px;
+border:none;
+border-radius:10px;
+}
+
+.btn{
+padding:12px 20px;
+border:none;
+border-radius:10px;
+margin-top:10px;
+background:#3b82f6;
+color:white;
+cursor:pointer;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+th,td{
+padding:12px;
+border-bottom:1px solid rgba(255,255,255,.1);
+text-align:left;
+}
+
+.progress{
+height:20px;
+background:#334155;
+border-radius:20px;
+overflow:hidden;
+}
+
+.progress-bar{
+height:100%;
+width:0%;
+background:linear-gradient(90deg,#22c55e,#3b82f6);
+transition:1s;
+}
+
+.theme{
+position:fixed;
+top:15px;
+right:15px;
+}
+
+.light{
+background:#f3f4f6;
+color:#111;
+}
+
+.light .card,
+.light .form-box{
+background:white;
+}
+
+.light .sidebar{
+background:#ffffff;
+}
+
+.light .menu button{
+background:#e5e7eb;
+color:#111;
+}
+</style>
+</head>
+
+<body>
+
+<button class="btn theme" onclick="toggleTheme()">🌙 Tema</button>
+
+<div class="container">
+
+<div class="sidebar">
+
+<div class="logo">
+🚗 Controle de Ganhos<br>
+Para Motorista de Aplicativo
+</div>
+
+<div class="menu">
+<button onclick="abrirTela('dashboard')">📊 Dashboard</button>
+<button onclick="abrirTela('lancamentos')">✍️ Lançamentos</button>
+<button onclick="abrirTela('historico')">📋 Histórico</button>
+</div>
+
+</div>
+
+<div class="content">
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="page active">
+
+<h2>📊 Dashboard</h2>
+
+<div class="cards">
+
+<div class="card">
+Ganhos
+<div class="valor" id="ganhos">R$ 0,00</div>
+</div>
+
+<div class="card">
+Gastos
+<div class="valor" id="gastos">R$ 0,00</div>
+</div>
+
+<div class="card">
+Lucro
+<div class="valor" id="lucro">R$ 0,00</div>
+</div>
+
+<div class="card">
+🎯 Meta diária
+<div style="margin-top:10px" class="progress">
+<div class="progress-bar" id="metaBar"></div>
+</div>
+</div>
+
+</div>
+
+<div class="card">
+<canvas id="grafico"></canvas>
+</div>
+
+</div>
+
+<!-- LANÇAMENTOS -->
+<div id="lancamentos" class="page">
+
+<h2>✍️ Lançamentos</h2>
+
+<div class="form-box">
+
+<h3>💰 Ganho</h3>
+
+<input type="number" id="valorGanho" placeholder="Valor">
+
+<select id="plataforma">
+<option>Uber</option>
+<option>99</option>
+<option>InDrive</option>
+</select>
+
+<button class="btn" onclick="salvarGanho()">
+Salvar Ganho
+</button>
+
+</div>
+
+<div class="form-box">
+
+<h3>💸 Gasto</h3>
+
+<input type="number" id="valorGasto" placeholder="Valor">
+
+<button class="btn" onclick="salvarGasto()">
+Salvar Gasto
+</button>
+
+</div>
+
+</div>
+
+<!-- HISTÓRICO -->
+<div id="historico" class="page">
+
+<h2>📋 Histórico</h2>
+
+<div class="card">
+
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Tipo</th>
+<th>Valor</th>
+<th>Plataforma</th>
+</tr>
+</thead>
+
+<tbody id="historicoTabela"></tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+let banco = JSON.parse(
+localStorage.getItem("motorista") ||
+'{"movimentos":[]}'
+);
+
+function abrirTela(id){
+document
+.querySelectorAll(".page")
+.forEach(p=>p.classList.remove("active"));
+
+document
+.getElementById(id)
+.classList.add("active");
+}
+
+function salvarGanho(){
+
+banco.movimentos.push({
+data:new Date().toLocaleDateString(),
+tipo:"Ganho",
+valor:Number(valorGanho.value),
+plata
